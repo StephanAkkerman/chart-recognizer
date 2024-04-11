@@ -1,4 +1,4 @@
-# Chart Recognizer
+# A Specialized Image Model For Financial Tweets
 
 ![chart-recognizer banner](img/banner.png)
 

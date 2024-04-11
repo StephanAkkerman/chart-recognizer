@@ -35,7 +35,6 @@ def get_data(batch_size: int = 32):
 def main(
     model_name: str = "efficientnet_b0",
     num_epochs: int = 5,
-    path: str = "data",
     batch_size: int = 32,
     lr: float = 1e-3,
     monitor: str = "f1_score",

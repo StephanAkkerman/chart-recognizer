@@ -1,6 +1,7 @@
 import os
 import shutil
 from pathlib import Path
+from PIL import Image
 
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
@@ -37,7 +38,7 @@ def format_data_directory(base_path: str = "data"):
             print(f"Renamed {file} to {new_file_path}")
 
 
-def organize(data_dir="data", test_size: float = 0.3, file_ext: str = ".jpg"):
+def organize(data_dir="data", test_size: float = 0.3, file_ext: str = ".png"):
     """
     Organizes the data in the data directory into train and val directories.
     Note: be sure to make a backup of your data directory before running this function.
@@ -126,14 +127,59 @@ def unorganize(data_dir="data - Copy"):
                 shutil.move(src_file_path, dest_file_path)
 
 
-def upload(data_dir: str = "data"):
+def to_RGB(main_subdir: str = "crypto-charts", data_dir: str = "data"):
+    """
+    Converts all images in specified subdirectories to RGB format.
+    """
+    # Define the main directory path
+    main_dir = Path(data_dir) / main_subdir
+
+    # Subdirectories to process
+    subdirs = ["charts", "non-charts"]
+
+    # Loop over each subdirectory
+    for subdir in subdirs:
+        full_path = main_dir / subdir
+
+        # Ensure the subdirectory exists
+        if not full_path.exists() or not full_path.is_dir():
+            print(f"Directory {full_path} does not exist or is not a directory.")
+            continue  # Skip to the next subdirectory if this one is invalid
+
+        # Fetch all image files in the directory
+        image_extensions = [
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".bmp",
+            ".gif",
+        ]  # Add or remove extensions as needed
+        files = sorted(
+            f
+            for f in full_path.glob("*")
+            if f.is_file() and f.suffix.lower() in image_extensions
+        )
+
+        for file in tqdm(files, desc=f"Processing {subdir}"):
+            # Open the image file
+            with Image.open(file) as img:
+                # Convert the image to RGB format if not already RGB
+                if img.mode != "RGB":
+                    img = img.convert("RGB")
+                    # Save the image back to the file
+                    img.save(file)
+
+
+def upload(data_dir: str = "data", subdir: str = "crypto-charts"):
     from datasets import load_dataset
 
     # Load the image dataset
-    dataset = load_dataset(data_dir)
-    # TODO: convert all images to RGB instead of RGBA
-    dataset.push_to_hub("StephanAkkerman/fintwit-charts")
+    dir = f"{data_dir}/{subdir}"
+    dataset = load_dataset(dir)
+    dataset.push_to_hub(f"StephanAkkerman/{subdir}", commit_message="new data upload")
 
 
 if __name__ == "__main__":
-    upload()
+    # to_RGB("stock-charts")
+    # upload()
+    upload(subdir="stock-charts")

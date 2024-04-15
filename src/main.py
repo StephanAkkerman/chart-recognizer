@@ -1,23 +1,30 @@
 import timm
 import torch
 from fastai.vision.all import *
-from datasets import load_dataset
+from datasets import load_dataset, concatenate_datasets
+
+
+def get_hf_dataset(
+    dataset_name: str, split: str = "train", cache_dir: str = "downloads"
+):
+    return load_dataset(
+        f"StephanAkkerman/{dataset_name}", split=split, cache_dir=cache_dir
+    )
 
 
 def get_data(batch_size: int = 32):
     # Load dataset from Hugging Face
-    dataset = load_dataset(
-        "StephanAkkerman/fintwit-charts", split="train", cache_dir="downloads"
-    )
+    crypto_charts = get_hf_dataset("crypto-charts")
+    stock_charts = get_hf_dataset("stock-charts")
+
+    dataset = concatenate_datasets([crypto_charts, stock_charts])
 
     # DataBlock definition
     datablock = DataBlock(
         blocks=(ImageBlock, CategoryBlock),
         get_items=lambda x: x,  # Dummy function, dataset provides the items
         splitter=RandomSplitter(valid_pct=0.3, seed=42),
-        get_x=lambda x: PILImage.create(x["image"]).convert(
-            "RGB"
-        ),  # some images are RGBA
+        get_x=lambda x: x["image"],
         get_y=lambda x: x["label"],
         item_tfms=Resize(300),
         batch_tfms=[
@@ -64,16 +71,9 @@ def main(
         ],
     )
 
-    save(model, learn, model_name)
-
-
-def save(model, learn, model_name: str):
     # Is this the same as learn.save()?
     torch.save(model.state_dict(), f"{model_name}.pth")
-
-    # Save the model
-    # learn.save("model_name")
-    # learn.export("model_name.pkl")
+    upload(model)
 
 
 def load_saved(model_name: str):

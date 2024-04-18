@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Sync labels from source to target repository
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const sourceRepo = 'owner/source-repo';
+            const sourceRepo = 'StephanAkkerman/fintwit-bot';
             const targetOwner = context.repo.owner;
             const targetRepo = context.repo.repo;
 

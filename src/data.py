@@ -1,185 +1,123 @@
+import io
 import os
-import shutil
-from pathlib import Path
+
+from datasets import Dataset, concatenate_datasets, load_dataset
+from concurrent.futures import ThreadPoolExecutor
+from fastai.vision.all import *
 from PIL import Image
-
 from tqdm import tqdm
-from sklearn.model_selection import train_test_split
 
 
-def format_data_directory(base_path: str = "data"):
-    """
-    Renames images in 'charts' and 'non-charts' subdirectories to numerical sequences.
-
-    Args:
-    - base_path (str): Path to the base directory containing 'charts' and 'non-charts'.
-    """
-    # Define the subdirectories to process
-    subdirs = ["charts", "non-charts"]
-
-    for subdir in subdirs:
-        # Construct the full path to the subdirectory
-        full_path = Path(base_path) / subdir
-
-        # Ensure the subdirectory exists
-        if not full_path.exists() or not full_path.is_dir():
-            print(f"Directory {full_path} does not exist or is not a directory.")
-            continue
-
-        # Fetch all image files in the directory
-        files = sorted(full_path.glob("*"))
-        for idx, file in enumerate(files, start=1):
-            # Construct the new file name with a numerical sequence
-            new_file_name = f"{idx}{file.suffix}"
-            new_file_path = full_path / new_file_name
-
-            # Rename the file
-            file.rename(new_file_path)
-            print(f"Renamed {file} to {new_file_path}")
+def get_hf_dataset(
+    dataset_name: str, split: str = "train", cache_dir: str = "downloads"
+) -> Dataset:
+    return load_dataset(
+        f"StephanAkkerman/{dataset_name}", split=split, cache_dir=cache_dir
+    )
 
 
-def organize(data_dir="data", test_size: float = 0.3, file_ext: str = ".png"):
-    """
-    Organizes the data in the data directory into train and val directories.
-    Note: be sure to make a backup of your data directory before running this function.
-    This function can be undone by running the unorganize function.
+def save_image(image_data, file_path):
+    """Save an image to the specified file path, maintaining the original format."""
+    if isinstance(image_data, bytes):
+        image = Image.open(io.BytesIO(image_data))
+    elif isinstance(image_data, Image.Image):
+        image = image_data
+    else:
+        image = Image.open(image_data)
 
-    Parameters
-    ----------
-    data_dir : str, optional
-        The directory where the images are saved, by default "data"
-    """
-    # Define your source directories
-    src_dirs = {"charts": f"{data_dir}/charts", "non-charts": f"{data_dir}/non-charts"}
+    if image.format:
+        format = image.format
+    else:
+        format = "PNG"  # Default format if no format is detected
 
-    # Define your destination directories
-    dest_dirs = {"train": f"{data_dir}/train", "val": f"{data_dir}/val"}
+    # Adjust file_path extension based on the format
+    file_path = f"{os.path.splitext(file_path)[0]}.{format.lower()}"
+    image.save(file_path)
 
-    # Ensure destination directories exist
-    for cat in ["charts", "non-charts"]:
-        os.makedirs(os.path.join(dest_dirs["train"], cat), exist_ok=True)
-        os.makedirs(os.path.join(dest_dirs["val"], cat), exist_ok=True)
 
-    for category, src_dir in tqdm(src_dirs.items()):
-        # List all files in the source directory
-        files = [
-            f for f in os.listdir(src_dir) if os.path.isfile(os.path.join(src_dir, f))
+def save_all_images(dataset, output_dir):
+    """Save all images from the dataset to the specified directory, organized by label."""
+    labels = dataset.features["label"].names
+    label_dirs = {label: os.path.join(output_dir, label) for label in labels}
+    for label_dir in label_dirs.values():
+        os.makedirs(label_dir, exist_ok=True)
+
+    def process_item(index_item):
+        index, item = index_item  # Unpack the tuple
+        label = labels[item["label"]]
+        label_dir = label_dirs[label]
+        file_name = item["id"]  # Temporarily omit the extension
+        file_path = os.path.join(label_dir, file_name)
+        save_image(item["image"], file_path)
+        return file_path
+
+    items_with_index = enumerate(dataset)  # Create an iterable of index, item pairs
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        list(tqdm(executor.map(process_item, items_with_index), total=len(dataset)))
+
+
+def save_dataset_images():
+    datasets = ["crypto-charts", "stock-charts", "fintwit-images"]
+
+    for dataset_name in datasets:
+        dataset = get_hf_dataset(dataset_name)
+        output_dir = os.path.join(
+            "downloaded-data", dataset_name
+        )  # Directory named after the dataset
+        save_all_images(dataset, output_dir)
+
+
+def get_dls_from_images(batch_size: int = 32, img_size: int = 300):
+    # Only do this if there is new data
+    # TODO: skip images that are already downloaded
+    # save_dataset_images()
+
+    path = Path("downloaded-data")
+
+    # DataBlock definition
+    datablock = DataBlock(
+        blocks=(ImageBlock, CategoryBlock),  # Input is an image, output is a category
+        get_items=get_image_files,  # Fetch image paths dynamically
+        splitter=RandomSplitter(valid_pct=0.3, seed=42),  # Creates the validation set
+        get_y=parent_label,  # Uses folder names as labels
+        item_tfms=Resize(img_size),
+        batch_tfms=[
+            *aug_transforms(size=img_size, min_scale=0.75),
+            Normalize.from_stats(*imagenet_stats),
+        ],
+    )
+
+    # Load the data into DataLoaders
+    dls = datablock.dataloaders(path, bs=batch_size, num_workers=0)
+    # dls.show_batch()
+    # matplotlib.pyplot.show()
+    return dls
+
+
+def get_dls_from_dataset(batch_size: int = 32, img_size: int = 300):
+    # Load dataset from Hugging Face
+    dataset = concatenate_datasets(
+        [
+            get_hf_dataset("crypto-charts"),
+            get_hf_dataset("stock-charts"),
+            get_hf_dataset("fintwit-images"),
         ]
+    )
 
-        # Split files into train and val sets (70% train, 30% val)
-        train_files, val_files = train_test_split(
-            files, test_size=test_size, random_state=42
-        )
+    # DataBlock definition
+    datablock = DataBlock(
+        blocks=(ImageBlock, CategoryBlock),  # Input is an image, output is a category
+        get_items=lambda x: x,  # Dummy function, dataset provides the items
+        splitter=RandomSplitter(valid_pct=0.3, seed=42),  # Creates the validation set
+        get_x=lambda x: x["image"],
+        get_y=lambda x: x["label"],
+        item_tfms=Resize(img_size),
+        batch_tfms=[
+            *aug_transforms(size=img_size, min_scale=0.75),
+            Normalize.from_stats(*imagenet_stats),
+        ],
+    )
 
-        # Function to move and rename files
-        def move_files(files, dest_subdir):
-            for idx, file in enumerate(files):
-                # Define new file name
-                new_file_name = f"{category}_{idx}{file_ext}"
-                src_file_path = os.path.join(src_dir, file)
-                dest_file_path = os.path.join(
-                    dest_dirs[dest_subdir], category, new_file_name
-                )
-
-                # Move and rename the file
-                shutil.move(src_file_path, dest_file_path)
-
-        # Move and rename train and val files
-        move_files(train_files, "train")
-        move_files(val_files, "val")
-
-
-def unorganize(data_dir="data - Copy"):
-    # Define your destination directories (now acting as source)
-    src_dirs = {"train": f"{data_dir}/train", "val": f"{data_dir}/val"}
-
-    # Define your original source directories (now acting as destination)
-    dest_dirs = {"charts": f"{data_dir}/charts", "non-charts": f"{data_dir}/non-charts"}
-
-    # Ensure original source directories exist
-    for dest_dir in dest_dirs.values():
-        os.makedirs(dest_dir, exist_ok=True)
-
-    for src_subdir, src_dir_path in src_dirs.items():
-        # Process each file in the train and val directories
-        for category in dest_dirs.keys():
-            full_src_dir = Path(src_dir_path) / category
-            if not full_src_dir.exists():
-                continue  # Skip if the category directory does not exist
-
-            files = [
-                f for f in os.listdir(full_src_dir) if os.path.isfile(full_src_dir / f)
-            ]
-            for file in tqdm(files, desc=f"Merging {category} from {src_subdir}"):
-                src_file_path = full_src_dir / file
-                dest_file_path = Path(dest_dirs[category]) / file
-
-                # Rename the file if a file with the same name exists in the destination
-                counter = 1
-                while dest_file_path.exists():
-                    # Append a counter to the file's name to make it unique
-                    name, ext = os.path.splitext(file)
-                    new_name = f"{name}_{counter}{ext}"
-                    dest_file_path = Path(dest_dirs[category]) / new_name
-                    counter += 1
-
-                # Move the file to the destination directory with a unique name
-                shutil.move(src_file_path, dest_file_path)
-
-
-def to_RGB(main_subdir: str = "crypto-charts", data_dir: str = "data"):
-    """
-    Converts all images in specified subdirectories to RGB format.
-    """
-    # Define the main directory path
-    main_dir = Path(data_dir) / main_subdir
-
-    # Subdirectories to process
-    subdirs = ["charts", "non-charts"]
-
-    # Loop over each subdirectory
-    for subdir in subdirs:
-        full_path = main_dir / subdir
-
-        # Ensure the subdirectory exists
-        if not full_path.exists() or not full_path.is_dir():
-            print(f"Directory {full_path} does not exist or is not a directory.")
-            continue  # Skip to the next subdirectory if this one is invalid
-
-        # Fetch all image files in the directory
-        image_extensions = [
-            ".jpg",
-            ".jpeg",
-            ".png",
-            ".bmp",
-            ".gif",
-        ]  # Add or remove extensions as needed
-        files = sorted(
-            f
-            for f in full_path.glob("*")
-            if f.is_file() and f.suffix.lower() in image_extensions
-        )
-
-        for file in tqdm(files, desc=f"Processing {subdir}"):
-            # Open the image file
-            with Image.open(file) as img:
-                # Convert the image to RGB format if not already RGB
-                if img.mode != "RGB":
-                    img = img.convert("RGB")
-                    # Save the image back to the file
-                    img.save(file)
-
-
-def upload(data_dir: str = "data", subdir: str = "crypto-charts"):
-    from datasets import load_dataset
-
-    # Load the image dataset
-    dir = f"{data_dir}/{subdir}"
-    dataset = load_dataset(dir)
-    dataset.push_to_hub(f"StephanAkkerman/{subdir}", commit_message="new data upload")
-
-
-if __name__ == "__main__":
-    # to_RGB("stock-charts")
-    # upload()
-    upload(subdir="stock-charts")
+    # Load the data into DataLoaders
+    # num_workers=0 is used to avoid a deadlock issue with DataLoader on Windows
+    return datablock.dataloaders(dataset, bs=batch_size, num_workers=0)

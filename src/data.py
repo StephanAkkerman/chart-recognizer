@@ -1,6 +1,7 @@
 import io
 import os
 
+import difPy
 from datasets import Dataset, concatenate_datasets, load_dataset
 from concurrent.futures import ThreadPoolExecutor
 from fastai.vision.all import *
@@ -121,3 +122,14 @@ def get_dls_from_dataset(batch_size: int = 32, img_size: int = 300):
     # Load the data into DataLoaders
     # num_workers=0 is used to avoid a deadlock issue with DataLoader on Windows
     return datablock.dataloaders(dataset, bs=batch_size, num_workers=0)
+
+
+def remove_duplicates():
+    # dif = difPy.build(['data/', 'C:/Path/to/Folder_B/', 'C:/Path/to/Folder_C/', ... ])
+    print("Searching for duplicates...")
+    dif = difPy.build("data/crypto-charts/charts/")
+    search = difPy.search(dif)
+
+
+if __name__ == "__main__":
+    remove_duplicates()

@@ -1,4 +1,5 @@
 import datetime
+import logging
 
 import matplotlib
 import timm
@@ -13,14 +14,15 @@ from data import get_dls_from_images, get_dls_from_dataset
 def train(
     model_name: str = "efficientnet_b0",
     num_epochs: int = 5,
-    batch_size: int = 32,
+    batch_size: int = 32,  # still needs to be optimized
     lr: float = 1e-3,
     monitor: str = "f1_score",
     load_dataset_in_mem: bool = False,
+    save_dir: str = "output",
 ):
     # Models must be in timm.list_models(pretrained=True)
     # https://huggingface.co/docs/timm/en/results for model results
-    print("Loading data...")
+    logging.info("Getting dataloader...")
 
     # This should only be done if you have a large amount of RAM (64GB+)
     # 48GB is enough for 10k images
@@ -31,7 +33,7 @@ def train(
     # Save dls?
     # torch.save(dls, "dls.pkl")
     # dls = toch.load("dls.pkl")
-    print("Data loaded.")
+    logging.info("Dataloader loaded.")
 
     model = timm.create_model(model_name, pretrained=True, num_classes=2)
     learn = Learner(
@@ -46,6 +48,7 @@ def train(
     suggested_lr = learn.lr_find(suggest_funcs=(valley, slide))[0]
 
     # Train the model
+    logging.info("Starting training...")
     learn.fine_tune(
         num_epochs,
         base_lr=suggested_lr,
@@ -57,11 +60,14 @@ def train(
         ],
     )
 
+    logging.info("Training completed.")
+
+    # TODO: add logic to only upload better models
     upload(model)
 
+    # TODO: improve model_name to include timestamp
     # Is this the same as learn.save()?
-    torch.save(model.state_dict(), f"output/{model_name}.pth")
-    upload(model)
+    torch.save(model.state_dict(), f"{save_dir}/{model_name}.pth")
 
     # DISPLAY CLASSIFICATION RESULT
     interp = ClassificationInterpretation.from_learner(learn)
@@ -71,7 +77,7 @@ def train(
     # cleaner = ImageClassifierCleaner(learn)
 
 
-def load_saved(model_name: str):
+def load_saved(model_name: str, save_dir: str = "output"):
     """
     Loads a saved model from disk.
 
@@ -86,7 +92,9 @@ def load_saved(model_name: str):
         The loaded model.
     """
     model = timm.create_model(
-        model_name=model_name, checkpoint_path=f"{model_name}.pth", num_classes=2
+        model_name=model_name,
+        checkpoint_path=f"{save_dir}/{model_name}.pth",
+        num_classes=2,
     )
     model.eval()
     return model

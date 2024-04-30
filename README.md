@@ -6,7 +6,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.8+-blue.svg" alt="Supported versions">
-  <img src="https://img.shields.io/badge/license-GPL--3.0-orange" alt="License">
+  <img src="https://img.shields.io/badge/license-MIT-brightgreen" alt="License">
   <a href="https://github.com/psf/black"><img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Code style: black"></a>
 </p>
 

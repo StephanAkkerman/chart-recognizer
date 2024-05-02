@@ -13,7 +13,7 @@ from data import get_dls_from_images, get_dls_from_dataset
 # https://timm.fast.ai/
 def train(
     model_name: str = "efficientnet_b0",
-    num_epochs: int = 5,
+    num_epochs: int = 1,
     batch_size: int = 32,  # still needs to be optimized
     lr: float = 1e-3,
     monitor: str = "f1_score",
@@ -29,11 +29,10 @@ def train(
     if load_dataset_in_mem:
         dls = get_dls_from_dataset(batch_size=batch_size)
     else:
-        dls = get_dls_from_images(batch_size=batch_size)
-    # Save dls?
-    # torch.save(dls, "dls.pkl")
-    # dls = toch.load("dls.pkl")
+        train_dl, val_dl, test_dl = get_dls_from_images(batch_size=batch_size)
     logging.info("Dataloader loaded.")
+
+    dls = DataLoaders(train_dl, val_dl)
 
     model = timm.create_model(model_name, pretrained=True, num_classes=2)
     learn = Learner(
@@ -61,6 +60,13 @@ def train(
     )
 
     logging.info("Training completed.")
+
+    # Evaluate on test set
+    logging.info("Evaluating on test set...")
+    test_results = learn.validate(dl=test_dl)
+    logging.info(f"Test Results - Loss: {test_results[0]}, Metrics: {test_results[1:]}")
+
+    return
 
     # TODO: add logic to only upload better models
     upload(model)

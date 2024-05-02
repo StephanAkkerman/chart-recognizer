@@ -2,6 +2,7 @@ import os
 import shutil
 from pathlib import Path
 
+import difPy
 import pandas as pd
 from datasets import load_dataset
 from PIL import Image
@@ -218,6 +219,14 @@ def create_metadata(data_dir: str = "data", subdir: str = "crypto-charts"):
 def upload_all_datasets():
     for subdir in ["crypto-charts", "stock-charts", "fintwit-images"]:
         upload(subdir=subdir)
+
+
+def remove_duplicates():
+    for main_dir in ["crypto-charts", "stock-charts", "fintwit-images"]:
+        for sub_dir in ["charts", "non-charts"]:
+            dif = difPy.build(f"data/{main_dir}/{sub_dir}")
+            search = difPy.search(dif)
+            search.move_to(destination_path=f"data/duplicates/{main_dir}/{sub_dir}/")
 
 
 if __name__ == "__main__":

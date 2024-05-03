@@ -1,0 +1,27 @@
+{
+    "model": 
+    {
+        "timm_model_name": "efficientnet_b0",
+        "epochs": 1,
+        "batch_size": 32,
+        "lr": 0.001,
+        "metrics": ["accuracy", "precision", "recall", "f1"],
+        "val_monitor": "f1",
+        "save_dir": "output",
+        "upload_to_hub": true,
+        "results_file": "results.json"
+    },
+    "data": {
+        "datasets": ["crypto-charts", "stock-charts", "fintwit-images"],
+        "datasets_dir": "downloads",
+        "load_datasets_in_memory": false,
+        "image_dir": "downloaded-data",
+        "val_split": 0.2,
+        "test_split": 0.1,
+        "transformations": {
+            "img_size": 224,
+            "min_scale": 0.75
+        }
+    }
+}
+    

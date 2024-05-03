@@ -6,6 +6,8 @@ from concurrent.futures import ThreadPoolExecutor
 from fastai.vision.all import *
 from PIL import Image
 from tqdm import tqdm
+from sklearn.model_selection import train_test_split
+from fastcore.foundation import L, range_of
 
 
 def get_hf_dataset(
@@ -42,8 +44,7 @@ def save_all_images(dataset, output_dir):
     for label_dir in label_dirs.values():
         os.makedirs(label_dir, exist_ok=True)
 
-    def process_item(index_item):
-        index, item = index_item  # Unpack the tuple
+    def process_item(item):
         label = labels[item["label"]]
         label_dir = label_dirs[label]
         file_name = item["id"]  # Temporarily omit the extension
@@ -51,18 +52,18 @@ def save_all_images(dataset, output_dir):
         save_image(item["image"], file_path)
         return file_path
 
-    items_with_index = enumerate(dataset)  # Create an iterable of index, item pairs
     with ThreadPoolExecutor(max_workers=8) as executor:
-        list(tqdm(executor.map(process_item, items_with_index), total=len(dataset)))
+        list(tqdm(executor.map(process_item, dataset), total=len(dataset)))
 
 
-def save_dataset_images():
-    datasets = ["crypto-charts", "stock-charts", "fintwit-images"]
-
+def save_dataset_images(
+    datasets: list = ["crypto-charts", "stock-charts", "fintwit-images"],
+    image_dir: str = "downloaded-images",
+):
     for dataset_name in datasets:
         dataset = get_hf_dataset(dataset_name)
         output_dir = os.path.join(
-            "downloaded-data", dataset_name
+            image_dir, dataset_name
         )  # Directory named after the dataset
         save_all_images(dataset, output_dir)
 
@@ -70,9 +71,6 @@ def save_dataset_images():
 def TrainValTestSplitter(
     test_size=0.1, valid_size=0.2, random_state=None, stratify=None, shuffle=True
 ):
-    from sklearn.model_selection import train_test_split
-    from fastcore.foundation import L, range_of
-
     "Create function that splits `items` into random train, validation, and test subsets."
 
     def _inner(o):
@@ -103,15 +101,21 @@ def TrainValTestSplitter(
     return _inner
 
 
-def get_dls_from_images(batch_size: int = 32, img_size: int = 300):
+def get_dls_from_images(config: dict):
     # Only do this if there is new data
     # TODO: skip images that are already downloaded
-    # save_dataset_images()
+    # save_dataset_images(datasets=config["data"]["datasets", image_dir=config["data"]["image_dir"])
 
-    path = Path("downloaded-data")
+    path = Path(config["data"]["image_dir"])
+    img_size = config["data"]["transformations"]["img_size"]
 
-    # DataBlock definition
-    splitter = TrainValTestSplitter(test_size=0.1, valid_size=0.2, random_state=42)
+    # Create the custom splitter
+    splitter = TrainValTestSplitter(
+        test_size=config["data"]["test_split"],
+        valid_size=config["data"]["val_split"],
+        random_state=42,
+    )
+
     datablock = DataBlock(
         blocks=(ImageBlock, CategoryBlock),  # Input is an image, output is a category
         get_items=get_image_files,  # Fetch image paths dynamically
@@ -119,20 +123,21 @@ def get_dls_from_images(batch_size: int = 32, img_size: int = 300):
         get_y=parent_label,  # Uses folder names as labels
         item_tfms=Resize(img_size),
         batch_tfms=[
-            *aug_transforms(size=img_size, min_scale=0.75),
+            *aug_transforms(
+                size=img_size, min_scale=config["data"]["transformations"]["min_scale"]
+            ),
             Normalize.from_stats(*imagenet_stats),
         ],
     )
 
     # Load the data into DataLoaders
-    dls = datablock.dataloaders(path, bs=batch_size, num_workers=0)
+    dls = datablock.dataloaders(path, bs=config["model"]["batch_size"], num_workers=0)
     # dls.show_batch()
     # matplotlib.pyplot.show()
-    #print(len(dls.loaders))
     return dls.loaders[0], dls.loaders[1], dls.loaders[2]
 
 
-def get_dls_from_dataset(batch_size: int = 32, img_size: int = 300):
+def get_dls_from_dataset(config: dict):
     # Load dataset from Hugging Face
     dataset = concatenate_datasets(
         [
@@ -142,20 +147,32 @@ def get_dls_from_dataset(batch_size: int = 32, img_size: int = 300):
         ]
     )
 
+    # Create the custom splitter
+    splitter = TrainValTestSplitter(
+        test_size=config["data"]["test_split"],
+        valid_size=config["data"]["val_split"],
+        random_state=42,
+    )
+    img_size = config["data"]["transformations"]["img_size"]
+
     # DataBlock definition
     datablock = DataBlock(
         blocks=(ImageBlock, CategoryBlock),  # Input is an image, output is a category
         get_items=lambda x: x,  # Dummy function, dataset provides the items
-        splitter=RandomSplitter(valid_pct=0.3, seed=42),  # Creates the validation set
+        splitter=splitter,  # Creates the validation set
         get_x=lambda x: x["image"],
         get_y=lambda x: x["label"],
         item_tfms=Resize(img_size),
         batch_tfms=[
-            *aug_transforms(size=img_size, min_scale=0.75),
+            *aug_transforms(
+                size=img_size, min_scale=config["data"]["transformations"]["min_scale"]
+            ),
             Normalize.from_stats(*imagenet_stats),
         ],
     )
 
-    # Load the data into DataLoaders
     # num_workers=0 is used to avoid a deadlock issue with DataLoader on Windows
-    return datablock.dataloaders(dataset, bs=batch_size, num_workers=0)
+    dls = datablock.dataloaders(
+        dataset, bs=config["model"]["batch_size"], num_workers=0
+    )
+    return dls.loaders[0], dls.loaders[1], dls.loaders[2]

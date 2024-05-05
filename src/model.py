@@ -1,10 +1,19 @@
-import datetime
 import logging
 import json
 import matplotlib
 import timm
 import torch
-from fastai.vision.all import *
+from fastai.vision.all import (
+    F1Score,
+    accuracy,
+    Precision,
+    Recall,
+    DataLoaders,
+    Learner,
+    SaveModelCallback,
+    valley,
+    slide,
+)
 
 # Local imports
 from data import get_dls_from_images, get_dls_from_dataset
@@ -32,7 +41,7 @@ class ChartRecognizer:
 
         # For converting config.json to function
         self.metrics_dict = {
-            "f1": F1Score(),
+            "f1_score": F1Score(),
             "precision": Precision(),
             "recall": Recall(),
             "accuracy": accuracy,
@@ -74,9 +83,7 @@ class ChartRecognizer:
             self.config["model"]["epochs"],
             base_lr=suggested_lr,
             cbs=[
-                SaveModelCallback(
-                    monitor=self.metrics_dict[self.config["model"]["monitor"]]
-                ),
+                SaveModelCallback(monitor=self.config["model"]["val_monitor"]),
                 # EarlyStoppingCallback(
                 #    monitor=monitor, min_delta=0.1, patience=3
                 # ),
@@ -92,6 +99,8 @@ class ChartRecognizer:
             f"Test Results - Loss: {test_results[0]}, Metrics: {test_results[1:]}"
         )
 
+        # Save information of the model in results.json
+        self.save_results(test_results=test_results)
         return
 
         # TODO: add logic to only upload better models
@@ -107,6 +116,56 @@ class ChartRecognizer:
         matplotlib.pyplot.show()
 
         # cleaner = ImageClassifierCleaner(learn)
+
+    def save_results(self, test_results: list, file_path="results.json"):
+        import os
+        from datetime import datetime
+
+        # Round the test results to 4 decimal places
+        test_results = [round(result, 4) for result in test_results]
+
+        # Initialize the dictionary with the loss
+        formatted_test_results = {
+            "loss": test_results[0],
+        }
+
+        # Create a dictionary of additional metrics
+        additional_metrics = {
+            metric: test_results[i]
+            for i, metric in enumerate(self.config["model"]["metrics"], start=1)
+        }
+        formatted_test_results.update(additional_metrics)
+
+        # Prepare results dictionary
+        results = {
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "model": self.config["model"],
+            "data": self.config["data"],
+        }
+        results.update(formatted_test_results)
+
+        # Check if the file exists and contains data
+        if os.path.exists(file_path):
+            with open(file_path, "r") as file:
+                try:
+                    data = json.load(file)
+                    if isinstance(data, list):  # Ensure it is a list
+                        data.append(results)
+                    else:
+                        data = [
+                            data,
+                            results,
+                        ]  # Create a list if the existing data is not a list
+                except json.JSONDecodeError:
+                    data = [
+                        results
+                    ]  # If the file is empty or corrupted, start a new list
+        else:
+            data = [results]  # Start a new list if the file does not exist
+
+        # Write the updated list back to the file
+        with open(file_path, "w") as file:
+            json.dump(data, file, indent=4)
 
 
 def load_saved(model_name: str, save_dir: str = "output"):

@@ -1,0 +1,82 @@
+[
+    {
+        "timestamp": "2024-05-05 21:26:22",
+        "model": {
+            "timm_model_name": "efficientnet_b0",
+            "epochs": 0,
+            "batch_size": 64,
+            "lr": 0.001,
+            "metrics": [
+                "accuracy",
+                "precision",
+                "recall",
+                "f1_score"
+            ],
+            "val_monitor": "f1_score",
+            "save_dir": "output",
+            "upload_to_hub": true,
+            "results_file": "results.json"
+        },
+        "data": {
+            "datasets": [
+                "crypto-charts",
+                "stock-charts",
+                "fintwit-images"
+            ],
+            "datasets_dir": "downloads",
+            "load_datasets_in_memory": false,
+            "image_dir": "downloaded-data",
+            "val_split": 0.2,
+            "test_split": 0.1,
+            "transformations": {
+                "img_size": 224,
+                "min_scale": 0.75
+            }
+        },
+        "loss": 0.3792,
+        "accuracy": 0.908,
+        "precision": 0.8168,
+        "recall": 0.9446,
+        "f1_score": 0.876
+    },
+    {
+        "timestamp": "2024-05-05 22:44:40",
+        "model": {
+            "timm_model_name": "efficientnet_b0",
+            "epochs": 0,
+            "batch_size": 64,
+            "lr": 0.001,
+            "metrics": [
+                "accuracy",
+                "precision",
+                "recall",
+                "f1_score"
+            ],
+            "val_monitor": "f1_score",
+            "save_dir": "output",
+            "upload_to_hub": true,
+            "results_file": "results.json"
+        },
+        "data": {
+            "datasets": [
+                "crypto-charts",
+                "stock-charts",
+                "fintwit-images"
+            ],
+            "datasets_dir": "downloads",
+            "load_datasets_in_memory": false,
+            "image_dir": "downloaded-data",
+            "val_split": 0.2,
+            "test_split": 0.1,
+            "transformations": {
+                "img_size": 224,
+                "min_scale": 0.75
+            }
+        },
+        "loss": 0.468,
+        "accuracy": 0.9087,
+        "precision": 0.8226,
+        "recall": 0.9366,
+        "f1_score": 0.8759
+    }
+]

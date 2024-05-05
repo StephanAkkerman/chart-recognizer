@@ -2,11 +2,11 @@
     "model": 
     {
         "timm_model_name": "efficientnet_b0",
-        "epochs": 1,
-        "batch_size": 32,
+        "epochs": 0,
+        "batch_size":64,
         "lr": 0.001,
-        "metrics": ["accuracy", "precision", "recall", "f1"],
-        "val_monitor": "f1",
+        "metrics": ["accuracy", "precision", "recall", "f1_score"],
+        "val_monitor": "f1_score",
         "save_dir": "output",
         "upload_to_hub": true,
         "results_file": "results.json"

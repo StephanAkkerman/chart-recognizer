@@ -3,7 +3,18 @@ import os
 
 from datasets import Dataset, concatenate_datasets, load_dataset
 from concurrent.futures import ThreadPoolExecutor
-from fastai.vision.all import *
+from fastai.vision.all import (
+    Path,
+    DataBlock,
+    ImageBlock,
+    CategoryBlock,
+    Resize,
+    aug_transforms,
+    Normalize,
+    get_image_files,
+    parent_label,
+    imagenet_stats,
+)
 from PIL import Image
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split

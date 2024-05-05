@@ -23,4 +23,4 @@ if __name__ == "__main__":
     logging.info("Training the model")
     model = ChartRecognizer()
     model.train()
-    logging.info("Model trained and saved to output/FinTwitBERT")
+    logging.info("Model trained and saved")

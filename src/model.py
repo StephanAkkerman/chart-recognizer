@@ -1,4 +1,6 @@
 import logging
+import time
+
 import json
 import matplotlib
 import timm
@@ -13,6 +15,7 @@ from fastai.vision.all import (
     SaveModelCallback,
     valley,
     slide,
+    ClassificationInterpretation,
 )
 
 # Local imports
@@ -79,6 +82,7 @@ class ChartRecognizer:
 
         # Train the model
         logging.info("Starting training...")
+        start_time = time.time()
         learn.fine_tune(
             self.config["model"]["epochs"],
             base_lr=suggested_lr,
@@ -90,7 +94,9 @@ class ChartRecognizer:
             ],
         )
 
-        logging.info("Training completed.")
+        end_time = time.time()  # Record end time
+        training_time = end_time - start_time  # Calculate training time
+        logging.info(f"Training completed. It took {training_time:.2f} seconds.")
 
         # Evaluate on test set
         logging.info("Evaluating on test set...")
@@ -100,15 +106,12 @@ class ChartRecognizer:
         )
 
         # Save information of the model in results.json
-        self.save_results(test_results=test_results)
-        return
+        results = self.save_results(
+            test_results=test_results, training_time=training_time
+        )
 
-        # TODO: add logic to only upload better models
-        upload(model)
-
-        # TODO: improve model_name to include timestamp
-        # Is this the same as learn.save()?
-        torch.save(model.state_dict(), f"{save_dir}/{model_name}.pth")
+        # Only uplaod model if it is better than the previous one
+        self.upload_best(results)
 
         # DISPLAY CLASSIFICATION RESULT
         interp = ClassificationInterpretation.from_learner(learn)
@@ -117,7 +120,46 @@ class ChartRecognizer:
 
         # cleaner = ImageClassifierCleaner(learn)
 
-    def save_results(self, test_results: list, file_path="results.json"):
+    def upload_best(self, results: list):
+        # Ensure there is at least one result to compare
+        if not results:
+            logging.info("No results available to compare.")
+            return
+
+        # Get the last result
+        last_result = results[-1]
+
+        # Check if the last result is better than all previous results
+        best_so_far = True  # Assume the last result is the best until proven otherwise
+        monitor = self.config["model"]["val_monitor"]
+
+        for result in results[:-1]:  # Compare with all previous results
+            if last_result[monitor] >= result[monitor]:
+                best_so_far = False
+                break
+
+        # Upload the model if the last result is the best
+        if best_so_far:
+            upload(self.model)
+            # Also save it locally
+            model_name = (
+                f"{self.config['model']['timm_model_name']}-{last_result[monitor]}"
+            )
+            torch.save(
+                self.model.state_dict(),
+                f"{self.config['model']['save_dir']}/{model_name}.pth",
+            )
+            logging.info(
+                "Model uploaded to Hugging Face Hub as it has the lowest loss so far."
+            )
+        else:
+            logging.info(
+                "Model not uploaded; it does not have the lowest loss compared to previous runs."
+            )
+
+    def save_results(
+        self, test_results: list, file_path="results.json", training_time: float = 0
+    ) -> list:
         import os
         from datetime import datetime
 
@@ -139,6 +181,7 @@ class ChartRecognizer:
         # Prepare results dictionary
         results = {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "training time": round(training_time, 2),
             "model": self.config["model"],
             "data": self.config["data"],
         }
@@ -166,6 +209,8 @@ class ChartRecognizer:
         # Write the updated list back to the file
         with open(file_path, "w") as file:
             json.dump(data, file, indent=4)
+
+        return data
 
 
 def load_saved(model_name: str, save_dir: str = "output"):

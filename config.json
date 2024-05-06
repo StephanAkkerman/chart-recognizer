@@ -3,7 +3,7 @@
     {
         "timm_model_name": "efficientnet_b0",
         "epochs": 5,
-        "batch_size":64,
+        "batch_size": 32,
         "lr": 0.001,
         "metrics": ["accuracy", "precision", "recall", "f1_score"],
         "val_monitor": "f1_score",

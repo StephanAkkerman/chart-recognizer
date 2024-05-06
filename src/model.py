@@ -134,9 +134,15 @@ class ChartRecognizer:
         monitor = self.config["model"]["val_monitor"]
 
         for result in results[:-1]:  # Compare with all previous results
-            if last_result[monitor] >= result[monitor]:
-                best_so_far = False
-                break
+            # This is only the case for loss
+            if monitor == "loss":
+                if result < last_result[monitor]:
+                    best_so_far = False
+                    break
+            else:
+                if result > last_result[monitor]:
+                    best_so_far = False
+                    break
 
         # Upload the model if the last result is the best
         if best_so_far:
@@ -150,11 +156,11 @@ class ChartRecognizer:
                 f"{self.config['model']['save_dir']}/{model_name}.pth",
             )
             logging.info(
-                "Model uploaded to Hugging Face Hub as it has the lowest loss so far."
+                f"Model uploaded to Hugging Face Hub as it has the best {monitor} so far."
             )
         else:
             logging.info(
-                "Model not uploaded; it does not have the lowest loss compared to previous runs."
+                f"Model not uploaded; it does not have the best {monitor} compared to previous runs."
             )
 
     def save_results(

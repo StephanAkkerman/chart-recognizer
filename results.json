@@ -1,51 +1,11 @@
 [
     {
-        "timestamp": "2024-05-06 17:12:29",
-        "training time": 1773.96,
+        "timestamp": "2024-05-08 19:52:27",
+        "training time (sec)": 268.36,
+        "training time / epoch (sec)": 268.36,
         "model": {
             "timm_model_name": "efficientnet_b0",
-            "epochs": 5,
-            "batch_size": 64,
-            "lr": 0.001,
-            "metrics": [
-                "accuracy",
-                "precision",
-                "recall",
-                "f1_score"
-            ],
-            "val_monitor": "f1_score",
-            "save_dir": "output",
-            "upload_to_hub": true,
-            "results_file": "results.json"
-        },
-        "data": {
-            "datasets": [
-                "crypto-charts",
-                "stock-charts",
-                "fintwit-images"
-            ],
-            "datasets_dir": "downloads",
-            "load_datasets_in_memory": false,
-            "image_dir": "downloaded-data",
-            "val_split": 0.2,
-            "test_split": 0.1,
-            "transformations": {
-                "img_size": 224,
-                "min_scale": 0.75
-            }
-        },
-        "loss": 0.2124,
-        "accuracy": 0.9516,
-        "precision": 0.8974,
-        "recall": 0.9703,
-        "f1_score": 0.9324
-    },
-    {
-        "timestamp": "2024-05-06 17:54:29",
-        "training time": 1642.76,
-        "model": {
-            "timm_model_name": "efficientnet_b0",
-            "epochs": 5,
+            "epochs": 0,
             "batch_size": 32,
             "lr": 0.001,
             "metrics": [
@@ -56,7 +16,7 @@
             ],
             "val_monitor": "f1_score",
             "save_dir": "output",
-            "upload_to_hub": true,
+            "upload_to_hub": false,
             "results_file": "results.json"
         },
         "data": {
@@ -75,10 +35,10 @@
                 "min_scale": 0.75
             }
         },
-        "loss": 0.1893,
-        "accuracy": 0.9611,
-        "precision": 0.9242,
-        "recall": 0.9663,
-        "f1_score": 0.9448
+        "loss": 0.3821,
+        "accuracy": 0.9162,
+        "precision": 0.8237,
+        "recall": 0.9624,
+        "f1_score": 0.8877
     }
 ]

@@ -111,7 +111,7 @@ class ChartRecognizer:
         )
 
         # Only uplaod model if it is better than the previous one
-        self.upload_best(results)
+        self.upload_best(results, learn)
 
         # DISPLAY CLASSIFICATION RESULT
         interp = ClassificationInterpretation.from_learner(learn)
@@ -120,7 +120,7 @@ class ChartRecognizer:
 
         # cleaner = ImageClassifierCleaner(learn)
 
-    def upload_best(self, results: list):
+    def upload_best(self, results: list, learn: Learner):
         # Ensure there is at least one result to compare
         if not results:
             logging.info("No results available to compare.")
@@ -146,15 +146,22 @@ class ChartRecognizer:
 
         # Upload the model if the last result is the best
         if best_so_far:
-            upload(self.model)
+            # Upload the model to the Hugging Face Hub
+            if self.config["model"]["upload_to_hub"]:
+                upload(self.model)
+
             # Also save it locally
             model_name = (
                 f"{self.config['model']['timm_model_name']}-{last_result[monitor]}"
             )
+            # Save the model to disk
             torch.save(
                 self.model.state_dict(),
                 f"{self.config['model']['save_dir']}/{model_name}.pth",
             )
+            # Save the learner to disk
+            # maybe change learn.path to self.config['model']['save_dir']?
+            learn.save(f"{model_name}-learner", with_opt=True)
             logging.info(
                 f"Model uploaded to Hugging Face Hub as it has the best {monitor} so far."
             )
@@ -187,7 +194,11 @@ class ChartRecognizer:
         # Prepare results dictionary
         results = {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "training time": round(training_time, 2),
+            "training time (sec)": round(training_time, 2),
+            # Epochs count from 0
+            "training time / epoch (sec)": round(
+                training_time / (self.config["model"]["epochs"] + 1), 2
+            ),
             "model": self.config["model"],
             "data": self.config["data"],
         }
@@ -251,6 +262,8 @@ def upload(model, model_name: str = "chart-recognizer") -> None:
     model : timm model
         The finetuned model to upload.
     """
+    logging.INFO("Uploading model to Hugging Face Hub...")
     timm.models.push_to_hf_hub(
         model, model_name, model_config={"label_names": ["chart", "non-chart"]}
     )
+    logging.INFO("Succesfully uploaded model to Hugging Face Hub 🤗")

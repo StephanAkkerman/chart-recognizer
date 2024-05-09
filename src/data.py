@@ -52,17 +52,22 @@ def save_all_images(dataset, output_dir):
     """Save all images from the dataset to the specified directory, organized by label."""
     labels = dataset.features["label"].names
     label_dirs = {label: os.path.join(output_dir, label) for label in labels}
+
+    # Check if the output directory exists, if not, create it
     for label_dir in label_dirs.values():
         os.makedirs(label_dir, exist_ok=True)
 
     def process_item(item):
-        label = labels[item["label"]]
-        label_dir = label_dirs[label]
-        file_name = item["id"]  # Temporarily omit the extension
-        file_path = os.path.join(label_dir, file_name)
-        save_image(item["image"], file_path)
+        # Save the image under the corresponding label directory
+        # Use the id for the image file name
+        file_path = os.path.join(label_dirs[labels[item["label"]]], item["id"])
+
+        # Only save it if the file does not yet exists
+        if not os.path.exists(file_path):
+            save_image(item["image"], file_path)
         return file_path
 
+    # Process all items in parallel
     with ThreadPoolExecutor(max_workers=8) as executor:
         list(tqdm(executor.map(process_item, dataset), total=len(dataset)))
 
@@ -115,7 +120,9 @@ def TrainValTestSplitter(
 def get_dls_from_images(config: dict):
     # Only do this if there is new data
     # TODO: skip images that are already downloaded
-    # save_dataset_images(datasets=config["data"]["datasets", image_dir=config["data"]["image_dir"])
+    save_dataset_images(
+        datasets=config["data"]["datasets"], image_dir=config["data"]["image_dir"]
+    )
 
     path = Path(config["data"]["image_dir"])
     img_size = config["data"]["transformations"]["img_size"]

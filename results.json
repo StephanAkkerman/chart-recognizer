@@ -1,11 +1,11 @@
 [
     {
-        "timestamp": "2024-05-08 19:52:27",
-        "training time (sec)": 268.36,
-        "training time / epoch (sec)": 268.36,
+        "timestamp": "2024-05-09 20:57:19",
+        "training time (sec)": 4178.4,
+        "training time / epoch (sec)": 261.15,
         "model": {
             "timm_model_name": "efficientnet_b0",
-            "epochs": 0,
+            "epochs": 15,
             "batch_size": 32,
             "lr": 0.001,
             "metrics": [
@@ -15,8 +15,8 @@
                 "f1_score"
             ],
             "val_monitor": "f1_score",
-            "save_dir": "output",
-            "upload_to_hub": false,
+            "save_dir": "models",
+            "upload_to_hub": true,
             "results_file": "results.json"
         },
         "data": {
@@ -35,10 +35,10 @@
                 "min_scale": 0.75
             }
         },
-        "loss": 0.3821,
-        "accuracy": 0.9162,
-        "precision": 0.8237,
-        "recall": 0.9624,
-        "f1_score": 0.8877
+        "loss": 0.159,
+        "accuracy": 0.9782,
+        "precision": 0.9628,
+        "recall": 0.9743,
+        "f1_score": 0.9685
     }
 ]

@@ -136,11 +136,11 @@ class ChartRecognizer:
         for result in results[:-1]:  # Compare with all previous results
             # This is only the case for loss
             if monitor == "loss":
-                if result < last_result[monitor]:
+                if result[monitor] < last_result[monitor]:
                     best_so_far = False
                     break
             else:
-                if result > last_result[monitor]:
+                if result[monitor] > last_result[monitor]:
                     best_so_far = False
                     break
 
@@ -262,8 +262,8 @@ def upload(model, model_name: str = "chart-recognizer") -> None:
     model : timm model
         The finetuned model to upload.
     """
-    logging.INFO("Uploading model to Hugging Face Hub...")
+    logging.info("Uploading model to Hugging Face Hub...")
     timm.models.push_to_hf_hub(
         model, model_name, model_config={"label_names": ["chart", "non-chart"]}
     )
-    logging.INFO("Succesfully uploaded model to Hugging Face Hub 🤗")
+    logging.info("Succesfully uploaded model to Hugging Face Hub 🤗")

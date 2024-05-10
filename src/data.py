@@ -29,7 +29,7 @@ def get_hf_dataset(
     )
 
 
-def save_image(image_data, file_path):
+def save_image(image_data, file_path, default_format="PNG"):
     """Save an image to the specified file path, maintaining the original format."""
     if isinstance(image_data, bytes):
         image = Image.open(io.BytesIO(image_data))
@@ -38,14 +38,9 @@ def save_image(image_data, file_path):
     else:
         image = Image.open(image_data)
 
-    if image.format:
-        format = image.format
-    else:
-        format = "PNG"  # Default format if no format is detected
-
-    # Adjust file_path extension based on the format
+    format = image.format or default_format  # Use the image's format or default to PNG
     file_path = f"{os.path.splitext(file_path)[0]}.{format.lower()}"
-    image.save(file_path)
+    image.save(file_path, format=format)
 
 
 def save_all_images(dataset, output_dir):
@@ -53,23 +48,40 @@ def save_all_images(dataset, output_dir):
     labels = dataset.features["label"].names
     label_dirs = {label: os.path.join(output_dir, label) for label in labels}
 
-    # Check if the output directory exists, if not, create it
-    for label_dir in label_dirs.values():
+    # Create label directories and track existing files by base name
+    existing_files = {}
+    for label, label_dir in label_dirs.items():
         os.makedirs(label_dir, exist_ok=True)
+        existing_files[label] = {os.path.splitext(f)[0] for f in os.listdir(label_dir)}
 
     def process_item(item):
-        # Save the image under the corresponding label directory
-        # Use the id for the image file name
-        file_path = os.path.join(label_dirs[labels[item["label"]]], item["id"])
+        label = labels[item["label"]]
+        base_name = item["id"]  # Assume 'id' is the base name of the file
+        file_path = os.path.join(label_dirs[label], base_name)
 
-        # Only save it if the file does not yet exists
-        if not os.path.exists(file_path):
-            save_image(item["image"], file_path)
-        return file_path
+        # Check if the file already exists; if not, save it
+        if base_name not in existing_files[label]:
+            save_image(image_data=item["image"], file_path=file_path)
+        else:
+            existing_files[label].remove(
+                base_name
+            )  # Mark file as still existing in dataset
 
     # Process all items in parallel
     with ThreadPoolExecutor(max_workers=8) as executor:
         list(tqdm(executor.map(process_item, dataset), total=len(dataset)))
+
+    # Remove files that no longer exist in the dataset
+    for label, files in existing_files.items():
+        for base_name in files:
+            for ext in [
+                ".jpg",
+                ".jpeg",
+                ".png",
+            ]:  # Consider common image file extensions
+                file_path = os.path.join(label_dirs[label], f"{base_name}{ext}")
+                if os.path.exists(file_path):
+                    os.remove(file_path)
 
 
 def save_dataset_images(

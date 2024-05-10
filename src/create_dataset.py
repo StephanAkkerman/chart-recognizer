@@ -173,47 +173,44 @@ def to_RGB(main_subdir: str = "crypto-charts", data_dir: str = "data"):
                     img.save(file)
 
 
+def compute_image_hash(image):
+    """Compute MD5 hash of the image content for a PIL.Image object."""
+    import hashlib
+    from io import BytesIO
+
+    hasher = hashlib.md5()
+    # Save image content to a bytes buffer instead of a file, then hash
+    with BytesIO() as buf:
+        image.save(buf, format="JPEG")  # Save image to bytes buffer in JPEG format
+        buf.seek(0)  # Rewind the buffer to start
+        hasher.update(buf.getvalue())  # Update the hash with the bytes data
+    return hasher.hexdigest()  # Return the hexadecimal digest of the hash
+
+
 def upload(data_dir: str = "data", subdir: str = "crypto-charts") -> None:
-    # https://huggingface.co/blog/image-search-datasets
-    # Be sure to move folders out of the subdir that do not need to be uploaded
+    """
+    https://huggingface.co/blog/image-search-datasets
+    Be sure to move folders out of the subdir that do not need to be uploaded
+
+    Parameters
+    ----------
+    data_dir : str, optional
+        _description_, by default "data"
+    subdir : str, optional
+        _description_, by default "crypto-charts"
+    """
 
     # Load the image dataset
     dataset = load_dataset(f"{data_dir}/{subdir}")
 
-    # Add id column
+    # Add id column based on image content hash
     dataset = dataset.map(
-        lambda x: {"id": x["image"].filename.split("\\")[-1]}, num_proc=8
+        lambda x: {"id": compute_image_hash(x["image"])},
+        num_proc=8,  # Processing in parallel using 8 workers
     )
 
     # Upload the dataset to the Hub
     dataset.push_to_hub(f"StephanAkkerman/{subdir}", commit_message="new data upload")
-
-
-def create_metadata(data_dir: str = "data", subdir: str = "crypto-charts"):
-    dir_path = os.path.join(data_dir, subdir)
-    records = []
-
-    # Traverse the subdirectories within the main directory
-    for label_dir in ["charts", "non-charts"]:
-        full_path = os.path.join(dir_path, label_dir)
-        for filename in os.listdir(full_path):
-            if filename.lower().endswith((".png", ".jpg", ".jpeg")):
-                records.append(
-                    {
-                        "file_name": f"{label_dir}/{filename}",
-                        "id": filename,  # ID is the same as filename
-                        "label": label_dir,
-                    }
-                )
-
-    # Convert list of dicts to DataFrame
-    df = pd.DataFrame(records)
-
-    # Save DataFrame to CSV
-    metadata_csv_path = os.path.join(dir_path, "metadata.csv")
-    df.to_csv(metadata_csv_path, index=False)
-
-    print(f"Metadata DataFrame written to {metadata_csv_path}")
 
 
 def upload_all_datasets():

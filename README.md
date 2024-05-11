@@ -1,4 +1,4 @@
-# A Specialized Image Model For Financial Tweets
+# A Specialized Image Model For Financial Charts
 
 ![chart-recognizer banner](img/banner.png)
 

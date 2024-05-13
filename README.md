@@ -24,7 +24,6 @@ I use this model in combination with my two other projects [FinTwit-bot](https:/
 - [Model Results](#model-results)
 - [Installation](#installation)
 - [Usage](#usage)
-- [Finetuning](#finetuning-datasets)
 - [Citation](#citation)
 - [Contributing](#contributing)
 - [License](#license)
@@ -39,6 +38,11 @@ I have implemented two approaches to train the model using these datasets. One, 
 
 ## Model Details
 The model is finetuned from [Timm's efficientnet](https://huggingface.co/docs/timm/en/models/efficientnet) and has an accuracy of 97.8% on the test set.
+
+## Model Results
+These are the latest results on the 10% test set.
+- Accuracy: 97.8
+- F1-score: 96.9
 
 ## Installation
 ```bash

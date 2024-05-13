@@ -5,7 +5,7 @@
 ---
 
 <p align="center">
-  <img src="https://img.shields.io/badge/python-3.8+-blue.svg" alt="Supported versions">
+  <img src="https://img.shields.io/badge/python-3.9+-blue.svg" alt="Supported versions">
   <img src="https://img.shields.io/badge/license-MIT-brightgreen" alt="License">
   <a href="https://github.com/psf/black"><img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Code style: black"></a>
 </p>
@@ -30,10 +30,15 @@ I use this model in combination with my two other projects [FinTwit-bot](https:/
 - [License](#license)
 
 ## Datasets
-chart-recognizer has been trained on my dataset. So far I have not been able to find another image dataset about financial charts. The dataset can be found on [Huggingface](https://huggingface.co/datasets/StephanAkkerman/fintwit-charts). It consists of about 2,000 images of financial tweets, with 80% including charts and 20% something else.
+chart-recognizer has been trained on three of my datasets. So far I have not found another image dataset about financial charts. The datasets that have been used to train these models are as follows:
+- [StephanAkkerman/crypto-charts](https://huggingface.co/datasets/StephanAkkerman/crypto-charts): 4,880 images.
+- [StephanAkkerman/stock-charts](https://huggingface.co/datasets/StephanAkkerman/stock-charts): 5,203 images.
+- [StephanAkkerman/fintwit-images](https://huggingface.co/datasets/StephanAkkerman/fintwit-images): 4,579 images.
+
+I have implemented two approaches to train the model using these datasets. One, where the model loads the images in memory however this does not work for more than 10k images on 48GB of RAM. The second method unpacks all the downloaded images which does not put as much strain on the user's RAM however, this approach demands some extra storage.
 
 ## Model Details
-The model is finetuned from [Timm's efficientnet](https://huggingface.co/docs/timm/en/models/efficientnet) and has an accuracy of 97% on the 30% validation set.
+The model is finetuned from [Timm's efficientnet](https://huggingface.co/docs/timm/en/models/efficientnet) and has an accuracy of 97.8% on the test set.
 
 ## Installation
 ```bash

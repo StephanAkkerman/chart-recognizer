@@ -56,16 +56,31 @@ pip install -r requirements.txt
 The model can be found on [Huggingface](https://huggingface.co/StephanAkkerman/chart-recognizer). It can be used together with the transformers library.
 
 ```python
-from transformers import pipeline
+import timm
+import torch
+from PIL import Image
+from timm.data import resolve_data_config, create_transform
 
-# Create a sentiment analysis pipeline
-pipe = pipeline(
-    "image-classification",
-    model="StephanAkkerman/chart-recognizer",
-)
+# Load and set model to eval mode
+model = timm.create_model("hf_hub:StephanAkkerman/chart-recognizer", pretrained=True)
+model.eval()
 
-# Get the predicted sentiment
-print(pipe(image))
+# Create transform and get labels
+transform = create_transform(**resolve_data_config(model.pretrained_cfg, model=model))
+labels = model.pretrained_cfg["label_names"]
+
+# Load and preprocess image
+image = Image.open("img/examples/tweet_example.png").convert("RGB")
+x = transform(image).unsqueeze(0)
+
+# Get model output and apply softmax
+probabilities = torch.nn.functional.softmax(model(x)[0], dim=0)
+
+# Map probabilities to labels
+output = {label: prob.item() for label, prob in zip(labels, probabilities)}
+
+# Print the predicted probabilities
+print(output)
 ```
 
 ## Citation
